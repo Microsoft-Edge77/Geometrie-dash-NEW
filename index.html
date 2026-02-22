@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash Platformer ++ Stable</title>
+<title>Geometry Dash Platformer ++ avec Pics</title>
 <style>
     body {
         margin: 0;
@@ -39,9 +39,8 @@ console.log("Script chargé.");
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-if (!ctx) {
-    alert("ERREUR : Impossible d'obtenir le contexte 2D !");
-}
+const W = canvas.width;
+const H = canvas.height;
 
 /* ============================
    PLAYER
@@ -61,6 +60,7 @@ let gravity = 0.8;
 let speed = 6;
 let score = 0;
 let blocks = [];
+let spikes = [];
 let gameOver = false;
 
 /* ============================
@@ -92,7 +92,7 @@ function spawnBlock() {
 
     // escaliers
     if (type < 0.4) {
-        y -= Math.floor(Math.random() * 4) * 40;
+        y -= Math.floor(Math.random() * 4) * 40; // 0, 40, 80, 120
     }
 
     blocks.push({
@@ -100,6 +100,20 @@ function spawnBlock() {
         y,
         w,
         h
+    });
+}
+
+/* ============================
+   SPIKE GENERATION
+============================ */
+function spawnSpike() {
+    const size = 40;
+    const y = 350; // au sol
+
+    spikes.push({
+        x: 900,
+        y,
+        size
     });
 }
 
@@ -139,11 +153,27 @@ function resolveCollision(p, b) {
 }
 
 /* ============================
+   SPIKE COLLISION (MORTELLE)
+============================ */
+function spikeCollision(p, s) {
+    if (
+        p.x < s.x + s.size &&
+        p.x + p.size > s.x &&
+        p.y < s.y + s.size &&
+        p.y + p.size > s.y
+    ) {
+        return true;
+    }
+    return false;
+}
+
+/* ============================
    RESTART
 ============================ */
 function restart() {
     console.log("Restart du jeu.");
     blocks = [];
+    spikes = [];
     score = 0;
     speed = 6;
     player.y = 300;
@@ -175,12 +205,43 @@ function drawBlock(b) {
 }
 
 /* ============================
+   DRAW SPIKE
+============================ */
+function drawSpike(s) {
+    ctx.fillStyle = "#ffdd55";
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y + s.size);
+    ctx.lineTo(s.x + s.size / 2, s.y);
+    ctx.lineTo(s.x + s.size, s.y + s.size);
+    ctx.closePath();
+    ctx.fill();
+}
+
+/* ============================
+   BACKGROUND
+============================ */
+let bgOffset = 0;
+function drawBackground() {
+    bgOffset -= speed * 0.2;
+    ctx.fillStyle = "#0a0f1a";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = "#112";
+    for (let i = 0; i < 20; i++) {
+        let x = (i * 200 + bgOffset) % (W + 200) - 200;
+        ctx.fillRect(x, H - 200, 150, 200);
+    }
+}
+
+/* ============================
    MAIN LOOP
 ============================ */
 function loop() {
     if (gameOver) return;
 
     ctx.clearRect(0, 0, W, H);
+
+    drawBackground();
 
     // physics
     player.vy += gravity;
@@ -194,8 +255,9 @@ function loop() {
         player.onGround = true;
     }
 
-    // spawn blocks
+    // spawn blocks & spikes
     if (Math.random() < 0.03) spawnBlock();
+    if (Math.random() < 0.02) spawnSpike();
 
     // move + draw blocks
     blocks.forEach(b => {
@@ -205,6 +267,17 @@ function loop() {
     });
 
     blocks = blocks.filter(b => b.x + b.w > 0);
+
+    // move + draw spikes
+    spikes.forEach(s => {
+        s.x -= speed;
+        drawSpike(s);
+        if (spikeCollision(player, s)) {
+            gameOver = true;
+        }
+    });
+
+    spikes = spikes.filter(s => s.x + s.size > 0);
 
     drawPlayer();
 
@@ -222,6 +295,3 @@ loop();
 
 </body>
 </html>
-
-
-      
