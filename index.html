@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash NEW</title>
+<title>Geometry Dash – Version Stable Sans Portails de Vitesse</title>
 <style>
   body{
     margin:0;
@@ -57,10 +58,7 @@ const player = {
 let gravity = 0.8;
 let gravitySign = 1;
 
-let baseSpeed = 4.5;   // vitesse constante
-let speed = baseSpeed;
-let maxSpeed = 6;      // vitesse max même avec portails
-
+let speed = 4.5;     // vitesse FIXE
 let score = 0;
 
 let blocks = [];
@@ -109,8 +107,8 @@ function spawnBlock() {
   }
 
   const moving = type > 0.7;
-  const amp = moving ? 10 + Math.random()*10 : 0;      // amplitude très faible
-  const ms  = moving ? 0.0005 + Math.random()*0.001 : 0; // vitesse ultra lente
+  const amp = moving ? 10 + Math.random()*10 : 0;
+  const ms  = moving ? 0.0005 + Math.random()*0.001 : 0;
   const phase = Math.random()*Math.PI*2;
 
   blocks.push({
@@ -144,10 +142,9 @@ function spawnSpike() {
 }
 
 /* ============================================================
-   SPAWN PORTAILS
+   SPAWN PORTAILS (gravité uniquement)
 ============================================================ */
 function spawnPortal() {
-  const type = Math.random() < 0.5 ? "gravity" : "speed";
   const y = (gravitySign === 1) ? H - 180 : 60;
 
   portals.push({
@@ -155,7 +152,7 @@ function spawnPortal() {
     y,
     w: 30,
     h: 80,
-    type,
+    type: "gravity",
     used: false
   });
 }
@@ -248,7 +245,7 @@ function restart() {
   portals = [];
   particles = [];
   score = 0;
-  speed = baseSpeed;   // vitesse remise à la valeur de base
+  speed = 4.5;   // vitesse FIXE
   gravitySign = 1;
   player.x = 120;
   player.y = H - 120;
@@ -304,7 +301,7 @@ function drawSpike(s) {
 }
 
 function drawPortal(p) {
-  ctx.strokeStyle = p.type === "gravity" ? "#7b5cff" : "#00ff88";
+  ctx.strokeStyle = "#7b5cff";
   ctx.lineWidth = 3;
   ctx.strokeRect(p.x, p.y, p.w, p.h);
 }
@@ -394,21 +391,15 @@ function loop() {
     });
     spikes = spikes.filter(s => s.x + s.size > 0);
 
-    /* --- Portails --- */
+    /* --- Portails (gravité uniquement) --- */
     portals.forEach(p => {
       p.x -= speed;
       drawPortal(p);
 
       if (!p.used && portalHit(player, p)) {
         p.used = true;
-
-        if (p.type === "gravity") {
-          gravitySign *= -1;
-          player.vy = 0;
-        } else if (p.type === "speed") {
-          speed += 0.8;
-          if (speed > maxSpeed) speed = maxSpeed;
-        }
+        gravitySign *= -1;
+        player.vy = 0;
       }
     });
     portals = portals.filter(p => p.x + p.w > 0);
