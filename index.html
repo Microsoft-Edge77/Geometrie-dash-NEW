@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash – Triangle ++ Final</title>
+<title>Geometry Dash – Triangle ++ Final Corrigé</title>
 <style>
   body{
     margin:0;
@@ -67,6 +67,9 @@ let particles = [];
 let gameOver = false;
 let deathTimer = 0;
 
+let frameCount = 0;
+let lastSpikeFrame = -999; // pour espacer les pics
+
 /* ============================================================
    INPUT
 ============================================================ */
@@ -95,15 +98,15 @@ function spawnBlock() {
 
   let w = 60 + Math.random() * 80;
   let h = 40 + Math.random() * 60;
-  let y = (gravitySign === 1) ? H - 120 : 60; // bas ou haut selon gravité
+  let y = (gravitySign === 1) ? H - 120 : 60;
 
   if (type < 0.5) {
-    y -= Math.floor(Math.random() * 3) * 40 * gravitySign; // escaliers adaptés
+    y -= Math.floor(Math.random() * 3) * 40 * gravitySign;
   }
 
   const moving = type > 0.7;
-  const amp = moving ? 30 + Math.random()*20 : 0;
-  const ms = moving ? 0.02 + Math.random()*0.03 : 0;
+  const amp = moving ? 20 + Math.random()*10 : 0;          // amplitude réduite
+  const ms  = moving ? 0.005 + Math.random()*0.01 : 0;     // vitesse beaucoup plus lente
   const phase = Math.random()*Math.PI*2;
 
   blocks.push({
@@ -120,13 +123,18 @@ function spawnBlock() {
 }
 
 /* ============================================================
-   SPAWN PICS
+   SPAWN PICS (espacés)
 ============================================================ */
 function spawnSpike() {
+  const minFramesBetweenSpikes = 60; // ~1 seconde à 60 FPS
+  if (frameCount - lastSpikeFrame < minFramesBetweenSpikes) return;
+
   const size = 40;
   const baseY = (gravitySign === 1) ? H - 120 : 60;
-  const y = (gravitySign === 1) ? baseY : baseY - size; // pointe vers le joueur
+  const y = (gravitySign === 1) ? baseY : baseY - size;
+
   spikes.push({ x: W + 50, y, size });
+  lastSpikeFrame = frameCount;
 }
 
 /* ============================================================
@@ -163,21 +171,17 @@ function resolveBlockCollision(p, b) {
 
     const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
 
-    // atterrissage (en fonction de la gravité)
     if (minOverlap === overlapTop && p.vy * gravitySign >= 0) {
       p.y = b.y - p.size;
       p.vy = 0;
       p.onGround = true;
     }
-    // mort côté gauche
     else if (minOverlap === overlapLeft) {
       triggerDeath();
     }
-    // mort côté droit
     else if (minOverlap === overlapRight) {
       triggerDeath();
     }
-    // collision par dessous
     else if (minOverlap === overlapBottom) {
       p.y = b.y + b.h;
       p.vy = 2 * gravitySign;
@@ -250,6 +254,8 @@ function restart() {
   player.angle = 0;
   gameOver = false;
   deathTimer = 0;
+  frameCount = 0;
+  lastSpikeFrame = -999;
   requestAnimationFrame(loop);
 }
 
@@ -327,6 +333,8 @@ function drawBackground() {
    MAIN LOOP
 ============================================================ */
 function loop() {
+  frameCount++;
+
   ctx.clearRect(0, 0, W, H);
   drawBackground();
 
@@ -400,7 +408,7 @@ function loop() {
     });
     portals = portals.filter(p => p.x + p.w > 0);
 
-    // Score & vitesse (progression très lente + limite)
+    // Score & vitesse
     score += 0.1;
     speed += 0.0008;
     if (speed > 7) speed = 7;
