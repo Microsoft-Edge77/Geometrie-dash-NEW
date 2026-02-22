@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash Platformer</title>
+<title>Geometry Dash Platformer ++</title>
 <style>
     body {
         margin: 0;
@@ -45,7 +45,7 @@ const H = canvas.height;
 ============================ */
 const player = {
     x: 120,
-    y: H - 120,
+    y: H - 150,
     size: 30,
     vy: 0,
     onGround: false
@@ -57,7 +57,7 @@ const player = {
 let gravity = 0.8;
 let speed = 6;
 let score = 0;
-let platforms = [];
+let blocks = [];
 let gameOver = false;
 
 /* ============================
@@ -77,22 +77,22 @@ window.onkeydown = e => {
 canvas.onclick = jump;
 
 /* ============================
-   PLATFORM GENERATION
+   BLOCK GENERATION
 ============================ */
-function spawnPlatform() {
+function spawnBlock() {
     const type = Math.random();
 
     let w = 60 + Math.random() * 80;
-    let h = 20;
+    let h = 40 + Math.random() * 60;
 
     let y = H - 120;
 
     // escaliers
-    if (type < 0.33) {
-        y -= Math.floor(Math.random() * 3) * 40; // 0, 40 ou 80 px plus haut
+    if (type < 0.4) {
+        y -= Math.floor(Math.random() * 4) * 40; // 0, 40, 80, 120
     }
 
-    platforms.push({
+    blocks.push({
         x: W + 50,
         y,
         w,
@@ -101,31 +101,54 @@ function spawnPlatform() {
 }
 
 /* ============================
-   COLLISION AVEC PLATEFORME
+   COLLISION SOLIDE (TOP / SIDE)
 ============================ */
-function checkPlatformCollision(p, plat) {
-    // collision horizontale
-    if (p.x + p.size < plat.x || p.x > plat.x + plat.w) return false;
+function resolveCollision(p, b) {
+    // AABB collision
+    if (
+        p.x < b.x + b.w &&
+        p.x + p.size > b.x &&
+        p.y < b.y + b.h &&
+        p.y + p.size > b.y
+    ) {
+        // distances
+        const overlapLeft = (p.x + p.size) - b.x;
+        const overlapRight = (b.x + b.w) - p.x;
+        const overlapTop = (p.y + p.size) - b.y;
+        const overlapBottom = (b.y + b.h) - p.y;
 
-    // collision verticale (atterrir dessus)
-    if (p.y + p.size <= plat.y && p.y + p.size + p.vy >= plat.y) {
-        p.y = plat.y - p.size;
-        p.vy = 0;
-        p.onGround = true;
-        return true;
+        const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+        // collision par-dessus (plateforme)
+        if (minOverlap === overlapTop && p.vy >= 0) {
+            p.y = b.y - p.size;
+            p.vy = 0;
+            p.onGround = true;
+        }
+        // collision par la gauche
+        else if (minOverlap === overlapLeft) {
+            p.x = b.x - p.size;
+        }
+        // collision par la droite
+        else if (minOverlap === overlapRight) {
+            p.x = b.x + b.w;
+        }
+        // collision par-dessous (tête)
+        else if (minOverlap === overlapBottom) {
+            p.y = b.y + b.h;
+            p.vy = 2;
+        }
     }
-
-    return false;
 }
 
 /* ============================
    RESTART
 ============================ */
 function restart() {
-    platforms = [];
+    blocks = [];
     score = 0;
     speed = 6;
-    player.y = H - 120;
+    player.y = H - 150;
     player.vy = 0;
     player.onGround = false;
     gameOver = false;
@@ -146,11 +169,11 @@ function drawPlayer() {
 }
 
 /* ============================
-   DRAW PLATFORM
+   DRAW BLOCK
 ============================ */
-function drawPlatform(p) {
+function drawBlock(b) {
     ctx.fillStyle = "#ff3c7d";
-    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.fillRect(b.x, b.y, b.w, b.h);
 }
 
 /* ============================
@@ -191,36 +214,34 @@ function loop() {
         player.onGround = true;
     }
 
-    // spawn platforms
-    if (Math.random() < 0.03) spawnPlatform();
+    // spawn blocks
+    if (Math.random() < 0.03) spawnBlock();
 
-    // move + draw platforms
-    platforms.forEach(p => {
-        p.x -= speed;
-        drawPlatform(p);
-
-        if (checkPlatformCollision(player, p)) {
-            // atterri sur plateforme
-        }
-
-        // collision mortelle sur le côté
-        if (
-            player.x + player.size > p.x &&
-            player.x < p.x + p.w &&
-            player.y + player.size > p.y &&
-            player.y < p.y + p.h &&
-            !player.onGround
-        ) {
-            gameOver = true;
-        }
+    // move + draw blocks
+    blocks.forEach(b => {
+        b.x -= speed;
+        drawBlock(b);
+        resolveCollision(player, b);
     });
 
     // remove off-screen
-    platforms = platforms.filter(p => p.x + p.w > 0);
+    blocks = blocks.filter(b => b.x + b.w > 0);
 
     // draw player
     drawPlayer();
 
     // score
     score += 0.1;
-    document.getElementById("ui").textContent
+    document.getElementById("ui").textContent = "Score : " + Math.floor(score);
+
+    // difficulty
+    speed += 0.002;
+
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
