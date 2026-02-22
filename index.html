@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash - Triangle Runner</title>
+<title>Geometry Dash Platformer</title>
 <style>
     body {
         margin: 0;
@@ -48,7 +48,7 @@ const player = {
     y: H - 120,
     size: 30,
     vy: 0,
-    onGround: true
+    onGround: false
 };
 
 /* ============================
@@ -57,7 +57,7 @@ const player = {
 let gravity = 0.8;
 let speed = 6;
 let score = 0;
-let obstacles = [];
+let platforms = [];
 let gameOver = false;
 
 /* ============================
@@ -77,54 +77,57 @@ window.onkeydown = e => {
 canvas.onclick = jump;
 
 /* ============================
-   OBSTACLES
+   PLATFORM GENERATION
 ============================ */
-function spawnObstacle() {
+function spawnPlatform() {
     const type = Math.random();
 
-    let w, h;
+    let w = 60 + Math.random() * 80;
+    let h = 20;
 
-    if (type < 0.33) { 
-        // bloc
-        w = 40; h = 60;
-    } else if (type < 0.66) { 
-        // pic
-        w = 40; h = 80;
-    } else { 
-        // double pic
-        w = 60; h = 90;
+    let y = H - 120;
+
+    // escaliers
+    if (type < 0.33) {
+        y -= Math.floor(Math.random() * 3) * 40; // 0, 40 ou 80 px plus haut
     }
 
-    obstacles.push({
+    platforms.push({
         x: W + 50,
-        y: H - 120,
+        y,
         w,
         h
     });
 }
 
 /* ============================
-   COLLISION
+   COLLISION AVEC PLATEFORME
 ============================ */
-function collide(a, b) {
-    return (
-        a.x < b.x + b.w &&
-        a.x + a.size > b.x &&
-        a.y + a.size > b.y &&
-        a.y < b.y + b.h
-    );
+function checkPlatformCollision(p, plat) {
+    // collision horizontale
+    if (p.x + p.size < plat.x || p.x > plat.x + plat.w) return false;
+
+    // collision verticale (atterrir dessus)
+    if (p.y + p.size <= plat.y && p.y + p.size + p.vy >= plat.y) {
+        p.y = plat.y - p.size;
+        p.vy = 0;
+        p.onGround = true;
+        return true;
+    }
+
+    return false;
 }
 
 /* ============================
    RESTART
 ============================ */
 function restart() {
-    obstacles = [];
+    platforms = [];
     score = 0;
     speed = 6;
     player.y = H - 120;
     player.vy = 0;
-    player.onGround = true;
+    player.onGround = false;
     gameOver = false;
     loop();
 }
@@ -143,11 +146,11 @@ function drawPlayer() {
 }
 
 /* ============================
-   DRAW OBSTACLES
+   DRAW PLATFORM
 ============================ */
-function drawObstacle(o) {
+function drawPlatform(p) {
     ctx.fillStyle = "#ff3c7d";
-    ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.fillRect(p.x, p.y, p.w, p.h);
 }
 
 /* ============================
@@ -179,45 +182,45 @@ function loop() {
     // physics
     player.vy += gravity;
     player.y += player.vy;
+    player.onGround = false;
 
+    // sol
     if (player.y > H - 120) {
         player.y = H - 120;
         player.vy = 0;
         player.onGround = true;
     }
 
-    // spawn obstacles
-    if (Math.random() < 0.02) spawnObstacle();
+    // spawn platforms
+    if (Math.random() < 0.03) spawnPlatform();
 
-    // move + draw obstacles
-    obstacles.forEach(o => {
-        o.x -= speed;
-        drawObstacle(o);
+    // move + draw platforms
+    platforms.forEach(p => {
+        p.x -= speed;
+        drawPlatform(p);
 
-        if (collide(player, o)) {
+        if (checkPlatformCollision(player, p)) {
+            // atterri sur plateforme
+        }
+
+        // collision mortelle sur le côté
+        if (
+            player.x + player.size > p.x &&
+            player.x < p.x + p.w &&
+            player.y + player.size > p.y &&
+            player.y < p.y + p.h &&
+            !player.onGround
+        ) {
             gameOver = true;
         }
     });
 
     // remove off-screen
-    obstacles = obstacles.filter(o => o.x + o.w > 0);
+    platforms = platforms.filter(p => p.x + p.w > 0);
 
     // draw player
     drawPlayer();
 
     // score
     score += 0.1;
-    document.getElementById("ui").textContent = "Score : " + Math.floor(score);
-
-    // difficulty
-    speed += 0.002;
-
-    requestAnimationFrame(loop);
-}
-
-loop();
-</script>
-
-</body>
-</html>
-
+    document.getElementById("ui").textContent
