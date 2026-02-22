@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash Platformer ++</title>
+<title>Geometry Dash Platformer ++ Stable</title>
 <style>
     body {
         margin: 0;
@@ -14,7 +14,7 @@
     #game {
         display: block;
         margin: auto;
-        background: linear-gradient(#0a0f1a, #03050a);
+        background: #071026;
     }
     #ui {
         position: fixed;
@@ -31,21 +31,24 @@
 <div id="ui">Score : 0</div>
 
 <script>
+console.log("Script chargé.");
+
 /* ============================
    CANVAS
 ============================ */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-const W = canvas.width;
-const H = canvas.height;
+if (!ctx) {
+    alert("ERREUR : Impossible d'obtenir le contexte 2D !");
+}
 
 /* ============================
    PLAYER
 ============================ */
 const player = {
     x: 120,
-    y: H - 150,
+    y: 300,
     size: 30,
     vy: 0,
     onGround: false
@@ -85,15 +88,15 @@ function spawnBlock() {
     let w = 60 + Math.random() * 80;
     let h = 40 + Math.random() * 60;
 
-    let y = H - 120;
+    let y = 350;
 
     // escaliers
     if (type < 0.4) {
-        y -= Math.floor(Math.random() * 4) * 40; // 0, 40, 80, 120
+        y -= Math.floor(Math.random() * 4) * 40;
     }
 
     blocks.push({
-        x: W + 50,
+        x: 900,
         y,
         w,
         h
@@ -101,17 +104,15 @@ function spawnBlock() {
 }
 
 /* ============================
-   COLLISION SOLIDE (TOP / SIDE)
+   COLLISION SOLIDE
 ============================ */
 function resolveCollision(p, b) {
-    // AABB collision
     if (
         p.x < b.x + b.w &&
         p.x + p.size > b.x &&
         p.y < b.y + b.h &&
         p.y + p.size > b.y
     ) {
-        // distances
         const overlapLeft = (p.x + p.size) - b.x;
         const overlapRight = (b.x + b.w) - p.x;
         const overlapTop = (p.y + p.size) - b.y;
@@ -119,21 +120,17 @@ function resolveCollision(p, b) {
 
         const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
 
-        // collision par-dessus (plateforme)
         if (minOverlap === overlapTop && p.vy >= 0) {
             p.y = b.y - p.size;
             p.vy = 0;
             p.onGround = true;
         }
-        // collision par la gauche
         else if (minOverlap === overlapLeft) {
             p.x = b.x - p.size;
         }
-        // collision par la droite
         else if (minOverlap === overlapRight) {
             p.x = b.x + b.w;
         }
-        // collision par-dessous (tête)
         else if (minOverlap === overlapBottom) {
             p.y = b.y + b.h;
             p.vy = 2;
@@ -145,10 +142,11 @@ function resolveCollision(p, b) {
    RESTART
 ============================ */
 function restart() {
+    console.log("Restart du jeu.");
     blocks = [];
     score = 0;
     speed = 6;
-    player.y = H - 150;
+    player.y = 300;
     player.vy = 0;
     player.onGround = false;
     gameOver = false;
@@ -177,22 +175,6 @@ function drawBlock(b) {
 }
 
 /* ============================
-   BACKGROUND PARALLAX
-============================ */
-let bgOffset = 0;
-function drawBackground() {
-    bgOffset -= speed * 0.2;
-    ctx.fillStyle = "#0a0f1a";
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.fillStyle = "#112";
-    for (let i = 0; i < 20; i++) {
-        let x = (i * 200 + bgOffset) % (W + 200) - 200;
-        ctx.fillRect(x, H - 200, 150, 200);
-    }
-}
-
-/* ============================
    MAIN LOOP
 ============================ */
 function loop() {
@@ -200,16 +182,14 @@ function loop() {
 
     ctx.clearRect(0, 0, W, H);
 
-    drawBackground();
-
     // physics
     player.vy += gravity;
     player.y += player.vy;
     player.onGround = false;
 
     // sol
-    if (player.y > H - 120) {
-        player.y = H - 120;
+    if (player.y > 350) {
+        player.y = 350;
         player.vy = 0;
         player.onGround = true;
     }
@@ -224,24 +204,24 @@ function loop() {
         resolveCollision(player, b);
     });
 
-    // remove off-screen
     blocks = blocks.filter(b => b.x + b.w > 0);
 
-    // draw player
     drawPlayer();
 
-    // score
     score += 0.1;
     document.getElementById("ui").textContent = "Score : " + Math.floor(score);
 
-    // difficulty
     speed += 0.002;
 
     requestAnimationFrame(loop);
 }
 
+console.log("Démarrage du jeu.");
 loop();
 </script>
 
 </body>
 </html>
+
+
+      
