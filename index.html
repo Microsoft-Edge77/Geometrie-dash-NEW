@@ -2,27 +2,27 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash Platformer ++ avec Pics</title>
+<title>Geometry Dash – Triangle, Blocs et Pics</title>
 <style>
-    body {
-        margin: 0;
-        background: #0a0f1a;
-        overflow: hidden;
-        font-family: Arial, sans-serif;
-        color: white;
-    }
-    #game {
-        display: block;
-        margin: auto;
-        background: #071026;
-    }
-    #ui {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        font-size: 20px;
-        font-weight: bold;
-    }
+  body {
+    margin: 0;
+    background: #050812;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    color: #fff;
+  }
+  #game {
+    display: block;
+    margin: 0 auto;
+    background: #071026;
+  }
+  #ui {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    font-size: 18px;
+    font-weight: bold;
+  }
 </style>
 </head>
 <body>
@@ -31,14 +31,11 @@
 <div id="ui">Score : 0</div>
 
 <script>
-console.log("Script chargé.");
-
 /* ============================
    CANVAS
 ============================ */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-
 const W = canvas.width;
 const H = canvas.height;
 
@@ -46,11 +43,11 @@ const H = canvas.height;
    PLAYER
 ============================ */
 const player = {
-    x: 120,
-    y: 300,
-    size: 30,
-    vy: 0,
-    onGround: false
+  x: 120,
+  y: H - 120,
+  size: 30,
+  vy: 0,
+  onGround: false
 };
 
 /* ============================
@@ -67,230 +64,222 @@ let gameOver = false;
    INPUT
 ============================ */
 function jump() {
-    if (player.onGround && !gameOver) {
-        player.vy = -16;
-        player.onGround = false;
-    }
-    if (gameOver) restart();
+  if (player.onGround && !gameOver) {
+    player.vy = -16;
+    player.onGround = false;
+  } else if (gameOver) {
+    restart();
+  }
 }
 
-window.onkeydown = e => {
-    if (e.code === "Space") jump();
-};
-canvas.onclick = jump;
+window.addEventListener("keydown", e => {
+  if (e.code === "Space") {
+    e.preventDefault();
+    jump();
+  }
+});
+canvas.addEventListener("click", jump);
 
 /* ============================
    BLOCK GENERATION
 ============================ */
 function spawnBlock() {
-    const type = Math.random();
+  const type = Math.random();
+  let w = 60 + Math.random() * 80;
+  let h = 40 + Math.random() * 60;
+  let y = H - 120;
 
-    let w = 60 + Math.random() * 80;
-    let h = 40 + Math.random() * 60;
+  // escaliers (blocs plus hauts)
+  if (type < 0.5) {
+    y -= Math.floor(Math.random() * 3) * 40; // 0, 40, 80
+  }
 
-    let y = 350;
-
-    // escaliers
-    if (type < 0.4) {
-        y -= Math.floor(Math.random() * 4) * 40; // 0, 40, 80, 120
-    }
-
-    blocks.push({
-        x: 900,
-        y,
-        w,
-        h
-    });
+  blocks.push({ x: W + 50, y, w, h });
 }
 
 /* ============================
    SPIKE GENERATION
 ============================ */
 function spawnSpike() {
-    const size = 40;
-    const y = 350; // au sol
-
-    spikes.push({
-        x: 900,
-        y,
-        size
-    });
+  const size = 40;
+  const y = H - 120;
+  spikes.push({ x: W + 50, y, size });
 }
 
 /* ============================
-   COLLISION SOLIDE
+   COLLISION BLOCS (SOLIDES)
 ============================ */
-function resolveCollision(p, b) {
-    if (
-        p.x < b.x + b.w &&
-        p.x + p.size > b.x &&
-        p.y < b.y + b.h &&
-        p.y + p.size > b.y
-    ) {
-        const overlapLeft = (p.x + p.size) - b.x;
-        const overlapRight = (b.x + b.w) - p.x;
-        const overlapTop = (p.y + p.size) - b.y;
-        const overlapBottom = (b.y + b.h) - p.y;
+function resolveBlockCollision(p, b) {
+  if (
+    p.x < b.x + b.w &&
+    p.x + p.size > b.x &&
+    p.y < b.y + b.h &&
+    p.y + p.size > b.y
+  ) {
+    const overlapLeft = (p.x + p.size) - b.x;
+    const overlapRight = (b.x + b.w) - p.x;
+    const overlapTop = (p.y + p.size) - b.y;
+    const overlapBottom = (b.y + b.h) - p.y;
 
-        const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+    const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
 
-        if (minOverlap === overlapTop && p.vy >= 0) {
-            p.y = b.y - p.size;
-            p.vy = 0;
-            p.onGround = true;
-        }
-        else if (minOverlap === overlapLeft) {
-            p.x = b.x - p.size;
-        }
-        else if (minOverlap === overlapRight) {
-            p.x = b.x + b.w;
-        }
-        else if (minOverlap === overlapBottom) {
-            p.y = b.y + b.h;
-            p.vy = 2;
-        }
+    // atterrissage sur le bloc
+    if (minOverlap === overlapTop && p.vy >= 0) {
+      p.y = b.y - p.size;
+      p.vy = 0;
+      p.onGround = true;
     }
+    // collision côté gauche
+    else if (minOverlap === overlapLeft) {
+      p.x = b.x - p.size;
+    }
+    // collision côté droit
+    else if (minOverlap === overlapRight) {
+      p.x = b.x + b.w;
+    }
+    // collision par dessous
+    else if (minOverlap === overlapBottom) {
+      p.y = b.y + b.h;
+      p.vy = 2;
+    }
+  }
 }
 
 /* ============================
-   SPIKE COLLISION (MORTELLE)
+   COLLISION PICS (MORTELLE)
 ============================ */
-function spikeCollision(p, s) {
-    if (
-        p.x < s.x + s.size &&
-        p.x + p.size > s.x &&
-        p.y < s.y + s.size &&
-        p.y + p.size > s.y
-    ) {
-        return true;
-    }
-    return false;
+function spikeHit(p, s) {
+  return (
+    p.x < s.x + s.size &&
+    p.x + p.size > s.x &&
+    p.y < s.y + s.size &&
+    p.y + p.size > s.y
+  );
 }
 
 /* ============================
    RESTART
 ============================ */
 function restart() {
-    console.log("Restart du jeu.");
-    blocks = [];
-    spikes = [];
-    score = 0;
-    speed = 6;
-    player.y = 300;
-    player.vy = 0;
-    player.onGround = false;
-    gameOver = false;
-    loop();
+  blocks = [];
+  spikes = [];
+  score = 0;
+  speed = 6;
+  player.x = 120;
+  player.y = H - 120;
+  player.vy = 0;
+  player.onGround = false;
+  gameOver = false;
+  requestAnimationFrame(loop);
 }
 
 /* ============================
    DRAW PLAYER
 ============================ */
 function drawPlayer() {
-    ctx.fillStyle = "#00eaff";
-    ctx.beginPath();
-    ctx.moveTo(player.x, player.y);
-    ctx.lineTo(player.x, player.y + player.size);
-    ctx.lineTo(player.x + player.size, player.y + player.size / 2);
-    ctx.closePath();
-    ctx.fill();
+  ctx.fillStyle = "#00eaff";
+  ctx.beginPath();
+  ctx.moveTo(player.x, player.y);
+  ctx.lineTo(player.x, player.y + player.size);
+  ctx.lineTo(player.x + player.size, player.y + player.size / 2);
+  ctx.closePath();
+  ctx.fill();
 }
 
 /* ============================
    DRAW BLOCK
 ============================ */
 function drawBlock(b) {
-    ctx.fillStyle = "#ff3c7d";
-    ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.fillStyle = "#ff3c7d";
+  ctx.fillRect(b.x, b.y, b.w, b.h);
 }
 
 /* ============================
    DRAW SPIKE
 ============================ */
 function drawSpike(s) {
-    ctx.fillStyle = "#ffdd55";
-    ctx.beginPath();
-    ctx.moveTo(s.x, s.y + s.size);
-    ctx.lineTo(s.x + s.size / 2, s.y);
-    ctx.lineTo(s.x + s.size, s.y + s.size);
-    ctx.closePath();
-    ctx.fill();
+  ctx.fillStyle = "#ffdd55";
+  ctx.beginPath();
+  ctx.moveTo(s.x, s.y + s.size);
+  ctx.lineTo(s.x + s.size / 2, s.y);
+  ctx.lineTo(s.x + s.size, s.y + s.size);
+  ctx.closePath();
+  ctx.fill();
 }
 
 /* ============================
-   BACKGROUND
+   BACKGROUND SIMPLE
 ============================ */
 let bgOffset = 0;
 function drawBackground() {
-    bgOffset -= speed * 0.2;
-    ctx.fillStyle = "#0a0f1a";
-    ctx.fillRect(0, 0, W, H);
+  bgOffset -= speed * 0.2;
+  ctx.fillStyle = "#050812";
+  ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = "#112";
-    for (let i = 0; i < 20; i++) {
-        let x = (i * 200 + bgOffset) % (W + 200) - 200;
-        ctx.fillRect(x, H - 200, 150, 200);
-    }
+  ctx.fillStyle = "#101528";
+  for (let i = 0; i < 20; i++) {
+    let x = (i * 200 + bgOffset) % (W + 200) - 200;
+    ctx.fillRect(x, H - 200, 150, 200);
+  }
 }
 
 /* ============================
    MAIN LOOP
 ============================ */
 function loop() {
-    if (gameOver) return;
+  if (gameOver) return;
 
-    ctx.clearRect(0, 0, W, H);
+  ctx.clearRect(0, 0, W, H);
+  drawBackground();
 
-    drawBackground();
+  // physique
+  player.vy += gravity;
+  player.y += player.vy;
+  player.onGround = false;
 
-    // physics
-    player.vy += gravity;
-    player.y += player.vy;
-    player.onGround = false;
+  // sol
+  if (player.y > H - 120) {
+    player.y = H - 120;
+    player.vy = 0;
+    player.onGround = true;
+  }
 
-    // sol
-    if (player.y > 350) {
-        player.y = 350;
-        player.vy = 0;
-        player.onGround = true;
+  // spawn blocs et pics
+  if (Math.random() < 0.03) spawnBlock();
+  if (Math.random() < 0.02) spawnSpike();
+
+  // blocs
+  blocks.forEach(b => {
+    b.x -= speed;
+    drawBlock(b);
+    resolveBlockCollision(player, b);
+  });
+  blocks = blocks.filter(b => b.x + b.w > 0);
+
+  // pics
+  spikes.forEach(s => {
+    s.x -= speed;
+    drawSpike(s);
+    if (spikeHit(player, s)) {
+      gameOver = true;
     }
+  });
+  spikes = spikes.filter(s => s.x + s.size > 0);
 
-    // spawn blocks & spikes
-    if (Math.random() < 0.03) spawnBlock();
-    if (Math.random() < 0.02) spawnSpike();
+  // joueur
+  drawPlayer();
 
-    // move + draw blocks
-    blocks.forEach(b => {
-        b.x -= speed;
-        drawBlock(b);
-        resolveCollision(player, b);
-    });
+  // score
+  score += 0.1;
+  document.getElementById("ui").textContent = "Score : " + Math.floor(score);
 
-    blocks = blocks.filter(b => b.x + b.w > 0);
+  // difficulté
+  speed += 0.002;
 
-    // move + draw spikes
-    spikes.forEach(s => {
-        s.x -= speed;
-        drawSpike(s);
-        if (spikeCollision(player, s)) {
-            gameOver = true;
-        }
-    });
-
-    spikes = spikes.filter(s => s.x + s.size > 0);
-
-    drawPlayer();
-
-    score += 0.1;
-    document.getElementById("ui").textContent = "Score : " + Math.floor(score);
-
-    speed += 0.002;
-
-    requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
 }
 
-console.log("Démarrage du jeu.");
-loop();
+requestAnimationFrame(loop);
 </script>
 
 </body>
