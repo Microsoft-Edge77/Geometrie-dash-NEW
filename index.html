@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash – Triangle ++</title>
+<title>Geometry Dash – Triangle ++ Final</title>
 <style>
   body{
     margin:0;
@@ -56,7 +56,7 @@ const player = {
 ============================================================ */
 let gravity = 0.8;
 let gravitySign = 1; // 1 = sol, -1 = plafond
-let speed = 4.5;     // vitesse lente
+let speed = 4.5;     // vitesse de base lente
 let score = 0;
 
 let blocks = [];
@@ -95,11 +95,10 @@ function spawnBlock() {
 
   let w = 60 + Math.random() * 80;
   let h = 40 + Math.random() * 60;
-  let y = H - 120;
+  let y = (gravitySign === 1) ? H - 120 : 60; // bas ou haut selon gravité
 
-  // escaliers
   if (type < 0.5) {
-    y -= Math.floor(Math.random() * 3) * 40;
+    y -= Math.floor(Math.random() * 3) * 40 * gravitySign; // escaliers adaptés
   }
 
   const moving = type > 0.7;
@@ -125,19 +124,21 @@ function spawnBlock() {
 ============================================================ */
 function spawnSpike() {
   const size = 40;
-  const y = H - 120;
+  const baseY = (gravitySign === 1) ? H - 120 : 60;
+  const y = (gravitySign === 1) ? baseY : baseY - size; // pointe vers le joueur
   spikes.push({ x: W + 50, y, size });
 }
 
 /* ============================================================
-   SPAWN PORTAILS
+   SPAWN PORTAILS (gravité + vitesse)
 ============================================================ */
 function spawnPortal() {
   const type = Math.random() < 0.5 ? "gravity" : "speed";
+  const y = (gravitySign === 1) ? H - 180 : 60;
 
   portals.push({
     x: W + 50,
-    y: H - 180,
+    y,
     w: 30,
     h: 80,
     type,
@@ -162,7 +163,7 @@ function resolveBlockCollision(p, b) {
 
     const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
 
-    // atterrissage
+    // atterrissage (en fonction de la gravité)
     if (minOverlap === overlapTop && p.vy * gravitySign >= 0) {
       p.y = b.y - p.size;
       p.vy = 0;
@@ -280,9 +281,15 @@ function drawBlock(b) {
 function drawSpike(s) {
   ctx.fillStyle = "#ffdd55";
   ctx.beginPath();
-  ctx.moveTo(s.x, s.y + s.size);
-  ctx.lineTo(s.x + s.size/2, s.y);
-  ctx.lineTo(s.x + s.size, s.y + s.size);
+  if (gravitySign === 1) {
+    ctx.moveTo(s.x, s.y + s.size);
+    ctx.lineTo(s.x + s.size/2, s.y);
+    ctx.lineTo(s.x + s.size, s.y + s.size);
+  } else {
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(s.x + s.size/2, s.y + s.size);
+    ctx.lineTo(s.x + s.size, s.y);
+  }
   ctx.closePath();
   ctx.fill();
 }
@@ -324,12 +331,12 @@ function loop() {
   drawBackground();
 
   if (!gameOver) {
-    /* --- Physique --- */
+    // Physique
     player.vy += gravity * gravitySign;
     player.y += player.vy;
     player.onGround = false;
 
-    /* --- Sol / plafond --- */
+    // Sol / plafond
     if (gravitySign === 1) {
       if (player.y > H - 120) {
         player.y = H - 120;
@@ -344,19 +351,19 @@ function loop() {
       }
     }
 
-    /* --- Rotation du triangle --- */
+    // Rotation du triangle
     if (!player.onGround) {
       player.angle += 0.25 * gravitySign;
     } else {
       player.angle *= 0.8;
     }
 
-    /* --- Spawns --- */
+    // Spawns
     if (Math.random() < 0.03) spawnBlock();
     if (Math.random() < 0.02) spawnSpike();
     if (Math.random() < 0.005) spawnPortal();
 
-    /* --- Blocs --- */
+    // Blocs
     blocks.forEach(b => {
       b.x -= speed;
       if (b.moving) {
@@ -367,7 +374,7 @@ function loop() {
     });
     blocks = blocks.filter(b => b.x + b.w > 0);
 
-    /* --- Pics --- */
+    // Pics
     spikes.forEach(s => {
       s.x -= speed;
       drawSpike(s);
@@ -375,7 +382,7 @@ function loop() {
     });
     spikes = spikes.filter(s => s.x + s.size > 0);
 
-    /* --- Portails --- */
+    // Portails
     portals.forEach(p => {
       p.x -= speed;
       drawPortal(p);
@@ -387,18 +394,19 @@ function loop() {
           gravitySign *= -1;
           player.vy = 0;
         } else if (p.type === "speed") {
-          speed += 1.2; // boost léger
+          speed += 1.2; // petit boost
         }
       }
     });
     portals = portals.filter(p => p.x + p.w > 0);
 
-    /* --- Score & vitesse --- */
+    // Score & vitesse (progression très lente + limite)
     score += 0.1;
-    speed += 0.0008; // progression très lente
+    speed += 0.0008;
+    if (speed > 7) speed = 7;
   }
 
-  /* --- Mort --- */
+  // Mort
   if (gameOver) {
     deathTimer--;
     particles.forEach(pt => {
@@ -417,7 +425,7 @@ function loop() {
     ctx.fillText("Mort ! Clique ou Espace pour recommencer", W/2, H/2);
   }
 
-  /* --- Dessins finaux --- */
+  // Dessins finaux
   if (!gameOver) drawPlayer();
   drawParticles();
 
