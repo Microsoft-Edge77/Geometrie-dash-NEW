@@ -3,90 +3,173 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Test Canvas - Debug Geometry Dash</title>
+<title>Geometry Dash Triangle + Musique</title>
 <style>
-  html,body{height:100%;margin:0;background:#0b0f18;display:flex;align-items:center;justify-content:center}
-  #gameCanvas{border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.6);background:linear-gradient(#071026,#04101a)}
-  .info{position:fixed;left:12px;top:12px;color:#fff;font-family:Arial,Helvetica,sans-serif}
+  html,body{margin:0;background:#000;font-family:Arial;color:#fff}
+  #gameCanvas{display:block;margin:20px auto;background:#071026;box-shadow:0 0 20px #000}
+  .ui{position:fixed;top:10px;left:10px}
+  .btn{padding:6px 10px;background:#222;border:1px solid #555;color:#fff;cursor:pointer}
 </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="1100" height="520"></canvas>
-<div class="info">Console: F12 — Vérifie les erreurs si écran noir</div>
+
+<canvas id="gameCanvas" width="900" height="450"></canvas>
+
+<div class="ui">
+  <div id="score">Score: 0</div>
+  <button class="btn" id="musicBtn">Activer musique</button>
+</div>
 
 <script>
-/* ====== Setup DPI-safe canvas ====== */
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+/* ============================
+   CANVAS + CONTEXTE
+============================ */
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-function resizeCanvasForDPR(){
-  const dpr = window.devicePixelRatio || 1;
-  const cssW = 1100;
-  const cssH = 520;
-  canvas.style.width = cssW + 'px';
-  canvas.style.height = cssH + 'px';
-  canvas.width = Math.floor(cssW * dpr);
-  canvas.height = Math.floor(cssH * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // scale drawing operations
+/* ============================
+   AUDIO
+============================ */
+let audioCtx = null;
+let masterGain = null;
+let musicOn = false;
+
+function startAudio(){
+  if(audioCtx) return;
+  audioCtx = new AudioContext();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.4;
+  masterGain.connect(audioCtx.destination);
 }
-resizeCanvasForDPR();
-window.addEventListener('resize', resizeCanvasForDPR);
 
-/* ====== Simple visual test ====== */
-console.log('Initialisation: canvas size', canvas.width, 'x', canvas.height);
-ctx.clearRect(0,0,canvas.width,canvas.height);
-ctx.fillStyle = '#0ff';
-ctx.fillRect(20,20,160,100);
-ctx.fillStyle = '#ff0';
-ctx.font = '20px Arial';
-ctx.fillText('Test visuel: rectangle cyan', 24, 60);
+function playNote(freq){
+  if(!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.frequency.value = freq;
+  o.type = "sawtooth";
+  g.gain.value = 0.15;
+  o.connect(g);
+  g.connect(masterGain);
+  o.start();
+  o.stop(audioCtx.currentTime + 0.2);
+}
 
-/* ====== Minimal game loop test ====== */
-let running = true;
+let musicInterval = null;
+function toggleMusic(){
+  startAudio();
+  musicOn = !musicOn;
+  document.getElementById("musicBtn").textContent = musicOn ? "Musique ON" : "Activer musique";
+
+  if(musicOn){
+    musicInterval = setInterval(()=>{
+      playNote(440);
+      setTimeout(()=>playNote(660),120);
+    },400);
+  } else {
+    clearInterval(musicInterval);
+  }
+}
+
+document.getElementById("musicBtn").onclick = toggleMusic;
+
+/* ============================
+   JEU
+============================ */
+let player = { x:100, y:350, size:30, vy:0, onGround:true };
+let obstacles = [];
+let speed = 5;
+let score = 0;
 let lastTime = performance.now();
-let tick = 0;
 
-function loop(now){
-  if (!running) return;
-  const dt = Math.min(40, now - lastTime);
-  lastTime = now;
-  tick += dt;
+function jump(){
+  startAudio();
+  if(player.onGround){
+    player.vy = -14;
+    player.onGround = false;
+  }
+}
 
-  // clear and draw background gradient
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  const g = ctx.createLinearGradient(0,0,0,520);
-  g.addColorStop(0,'#071026'); g.addColorStop(1,'#04101a');
-  ctx.fillStyle = g;
-  ctx.fillRect(0,0,1100,520);
+window.onkeydown = e=>{
+  if(e.code==="Space") jump();
+};
 
-  // moving test rectangle to show animation
-  const x = 60 + (tick * 0.12) % 900;
-  ctx.fillStyle = '#00f0ff';
-  ctx.fillRect(x, 200, 80, 48);
+canvas.onclick = jump;
 
-  // draw a triangle player
-  ctx.fillStyle = '#ffcc00';
+/* Création obstacles */
+function spawnObstacle(){
+  obstacles.push({
+    x:900,
+    y:350,
+    w:30,
+    h:50
+  });
+}
+
+/* Collision */
+function collide(a,b){
+  return a.x < b.x+b.w &&
+         a.x+a.size > b.x &&
+         a.y < b.y+b.h &&
+         a.y+a.size > b.y;
+}
+
+/* ============================
+   BOUCLE DE JEU
+============================ */
+function loop(t){
+  const dt = t - lastTime;
+  lastTime = t;
+
+  // fond
+  ctx.fillStyle = "#071026";
+  ctx.fillRect(0,0,900,450);
+
+  // gravité
+  player.vy += 0.7;
+  player.y += player.vy;
+
+  if(player.y > 350){
+    player.y = 350;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  // obstacles
+  if(Math.random() < 0.02){
+    spawnObstacle();
+  }
+
+  obstacles.forEach(o=>{
+    o.x -= speed;
+    ctx.fillStyle = "#ff4ecf";
+    ctx.fillRect(o.x,o.y,o.w,o.h);
+
+    if(collide(player,o)){
+      score = 0;
+      obstacles = [];
+      speed = 5;
+    }
+  });
+
+  // triangle joueur
+  ctx.fillStyle = "#00f0ff";
   ctx.beginPath();
-  ctx.moveTo(140, 260 - 18);
-  ctx.lineTo(140, 260 + 18);
-  ctx.lineTo(140 + 36, 260);
+  ctx.moveTo(player.x, player.y);
+  ctx.lineTo(player.x, player.y + player.size);
+  ctx.lineTo(player.x + player.size, player.y + player.size/2);
   ctx.closePath();
   ctx.fill();
 
-  // HUD
-  ctx.fillStyle = '#fff';
-  ctx.font = '18px Arial';
-  ctx.fillText('Tick: ' + Math.floor(tick), 18, 28);
+  // score
+  score += dt * 0.01;
+  document.getElementById("score").textContent = "Score: " + Math.floor(score);
 
   requestAnimationFrame(loop);
 }
-requestAnimationFrame(loop);
 
-/* ====== Quick error catcher ====== */
-window.addEventListener('error', (e) => {
-  console.error('Erreur détectée:', e.message, 'à', e.filename + ':' + e.lineno);
-  alert('Erreur JS détectée — regarde la console (F12) pour détails.');
-});
+requestAnimationFrame(loop);
 </script>
+
 </body>
 </html>
