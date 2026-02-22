@@ -31,17 +31,17 @@
 <div id="ui">Score : 0</div>
 
 <script>
-/* ============================
+/* ============================================================
    CANVAS
-============================ */
+============================================================ */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const W = canvas.width;
 const H = canvas.height;
 
-/* ============================
+/* ============================================================
    PLAYER
-============================ */
+============================================================ */
 const player = {
   x: 120,
   y: H - 120,
@@ -51,23 +51,25 @@ const player = {
   angle: 0
 };
 
-/* ============================
+/* ============================================================
    GAME VARIABLES
-============================ */
+============================================================ */
 let gravity = 0.8;
-let speed = 6;
+let gravitySign = 1; // 1 = sol, -1 = plafond
+let speed = 4.5;     // vitesse lente
 let score = 0;
-let blocks = [];      // blocs fixes + mobiles
+
+let blocks = [];
 let spikes = [];
 let portals = [];
+let particles = [];
+
 let gameOver = false;
 let deathTimer = 0;
-let particles = [];
-let gravitySign = 1;  // 1 = sol, -1 = plafond
 
-/* ============================
+/* ============================================================
    INPUT
-============================ */
+============================================================ */
 function jump() {
   if (!gameOver && player.onGround) {
     player.vy = -16 * gravitySign;
@@ -85,22 +87,24 @@ window.addEventListener("keydown", e => {
 });
 canvas.addEventListener("click", jump);
 
-/* ============================
+/* ============================================================
    SPAWN BLOCS (fixes + mobiles)
-============================ */
+============================================================ */
 function spawnBlock() {
   const type = Math.random();
+
   let w = 60 + Math.random() * 80;
   let h = 40 + Math.random() * 60;
   let y = H - 120;
 
+  // escaliers
   if (type < 0.5) {
-    y -= Math.floor(Math.random() * 3) * 40; // escaliers
+    y -= Math.floor(Math.random() * 3) * 40;
   }
 
-  const isMoving = type > 0.7; // ~30% mobiles
-  const moveAmp = isMoving ? 30 + Math.random()*30 : 0;
-  const moveSpeed = isMoving ? 0.02 + Math.random()*0.03 : 0;
+  const moving = type > 0.7;
+  const amp = moving ? 30 + Math.random()*20 : 0;
+  const ms = moving ? 0.02 + Math.random()*0.03 : 0;
   const phase = Math.random()*Math.PI*2;
 
   blocks.push({
@@ -109,39 +113,41 @@ function spawnBlock() {
     y,
     w,
     h,
-    moving: isMoving,
-    amp: moveAmp,
-    ms: moveSpeed,
+    moving,
+    amp,
+    ms,
     phase
   });
 }
 
-/* ============================
+/* ============================================================
    SPAWN PICS
-============================ */
+============================================================ */
 function spawnSpike() {
   const size = 40;
   const y = H - 120;
   spikes.push({ x: W + 50, y, size });
 }
 
-/* ============================
-   SPAWN PORTAILS (gravité)
-============================ */
+/* ============================================================
+   SPAWN PORTAILS
+============================================================ */
 function spawnPortal() {
-  const y = H - 160;
+  const type = Math.random() < 0.5 ? "gravity" : "speed";
+
   portals.push({
     x: W + 50,
-    y,
+    y: H - 180,
     w: 30,
     h: 80,
+    type,
     used: false
   });
 }
 
-/* ============================
-   COLLISION BLOCS (SOLIDES + MORT LATÉRALE)
-============================ */
+/* ============================================================
+   COLLISION BLOCS (mort sur les côtés)
+============================================================ */
 function resolveBlockCollision(p, b) {
   if (
     p.x < b.x + b.w &&
@@ -156,17 +162,17 @@ function resolveBlockCollision(p, b) {
 
     const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
 
-    // atterrissage sur le bloc (en fonction de la gravité)
+    // atterrissage
     if (minOverlap === overlapTop && p.vy * gravitySign >= 0) {
       p.y = b.y - p.size;
       p.vy = 0;
       p.onGround = true;
     }
-    // collision côté gauche → mort
+    // mort côté gauche
     else if (minOverlap === overlapLeft) {
       triggerDeath();
     }
-    // collision côté droit → mort
+    // mort côté droit
     else if (minOverlap === overlapRight) {
       triggerDeath();
     }
@@ -178,9 +184,9 @@ function resolveBlockCollision(p, b) {
   }
 }
 
-/* ============================
-   COLLISION PICS (MORTELLE)
-============================ */
+/* ============================================================
+   COLLISION PICS (mort instantanée)
+============================================================ */
 function spikeHit(p, s) {
   return (
     p.x < s.x + s.size &&
@@ -190,9 +196,9 @@ function spikeHit(p, s) {
   );
 }
 
-/* ============================
-   COLLISION PORTAILS (GRAVITÉ)
-============================ */
+/* ============================================================
+   COLLISION PORTAILS
+============================================================ */
 function portalHit(p, portal) {
   return (
     p.x < portal.x + portal.w &&
@@ -202,13 +208,13 @@ function portalHit(p, portal) {
   );
 }
 
-/* ============================
+/* ============================================================
    DEATH ANIMATION
-============================ */
+============================================================ */
 function triggerDeath() {
   if (gameOver) return;
   gameOver = true;
-  deathTimer = 60; // frames
+  deathTimer = 60;
   spawnDeathParticles();
 }
 
@@ -225,17 +231,16 @@ function spawnDeathParticles() {
   }
 }
 
-/* ============================
+/* ============================================================
    RESTART
-============================ */
+============================================================ */
 function restart() {
   blocks = [];
   spikes = [];
   portals = [];
   particles = [];
   score = 0;
-  speed = 6;
-  gravity = 0.8;
+  speed = 4.5;
   gravitySign = 1;
   player.x = 120;
   player.y = H - 120;
@@ -247,9 +252,9 @@ function restart() {
   requestAnimationFrame(loop);
 }
 
-/* ============================
-   DRAW PLAYER
-============================ */
+/* ============================================================
+   DRAW FUNCTIONS
+============================================================ */
 function drawPlayer() {
   ctx.save();
   ctx.translate(player.x + player.size/2, player.y + player.size/2);
@@ -267,41 +272,27 @@ function drawPlayer() {
   ctx.restore();
 }
 
-/* ============================
-   DRAW BLOCK
-============================ */
 function drawBlock(b) {
   ctx.fillStyle = "#ff3c7d";
   ctx.fillRect(b.x, b.y, b.w, b.h);
 }
 
-/* ============================
-   DRAW SPIKE
-============================ */
 function drawSpike(s) {
   ctx.fillStyle = "#ffdd55";
   ctx.beginPath();
   ctx.moveTo(s.x, s.y + s.size);
-  ctx.lineTo(s.x + s.size / 2, s.y);
+  ctx.lineTo(s.x + s.size/2, s.y);
   ctx.lineTo(s.x + s.size, s.y + s.size);
   ctx.closePath();
   ctx.fill();
 }
 
-/* ============================
-   DRAW PORTAL
-============================ */
 function drawPortal(p) {
-  ctx.strokeStyle = "#7b5cff";
+  ctx.strokeStyle = p.type === "gravity" ? "#7b5cff" : "#00ff88";
   ctx.lineWidth = 3;
   ctx.strokeRect(p.x, p.y, p.w, p.h);
-  ctx.fillStyle = "rgba(123,92,255,0.2)";
-  ctx.fillRect(p.x, p.y, p.w, p.h);
 }
 
-/* ============================
-   DRAW PARTICLES
-============================ */
 function drawParticles() {
   particles.forEach(pt => {
     ctx.fillStyle = "#00eaff";
@@ -309,9 +300,9 @@ function drawParticles() {
   });
 }
 
-/* ============================
+/* ============================================================
    BACKGROUND
-============================ */
+============================================================ */
 let bgOffset = 0;
 function drawBackground() {
   bgOffset -= speed * 0.2;
@@ -325,49 +316,47 @@ function drawBackground() {
   }
 }
 
-/* ============================
+/* ============================================================
    MAIN LOOP
-============================ */
+============================================================ */
 function loop() {
   ctx.clearRect(0, 0, W, H);
   drawBackground();
 
   if (!gameOver) {
-    // physique
+    /* --- Physique --- */
     player.vy += gravity * gravitySign;
     player.y += player.vy;
     player.onGround = false;
 
-    // sol / plafond
+    /* --- Sol / plafond --- */
     if (gravitySign === 1) {
       if (player.y > H - 120) {
         player.y = H - 120;
         player.vy = 0;
         player.onGround = true;
       }
-      if (player.y + player.size < 0) triggerDeath();
     } else {
-      if (player.y < 70) {
-        player.y = 70;
+      if (player.y < 60) {
+        player.y = 60;
         player.vy = 0;
         player.onGround = true;
       }
-      if (player.y > H) triggerDeath();
     }
 
-    // rotation du triangle
+    /* --- Rotation du triangle --- */
     if (!player.onGround) {
       player.angle += 0.25 * gravitySign;
     } else {
       player.angle *= 0.8;
     }
 
-    // spawn
+    /* --- Spawns --- */
     if (Math.random() < 0.03) spawnBlock();
     if (Math.random() < 0.02) spawnSpike();
     if (Math.random() < 0.005) spawnPortal();
 
-    // blocs
+    /* --- Blocs --- */
     blocks.forEach(b => {
       b.x -= speed;
       if (b.moving) {
@@ -378,7 +367,7 @@ function loop() {
     });
     blocks = blocks.filter(b => b.x + b.w > 0);
 
-    // pics
+    /* --- Pics --- */
     spikes.forEach(s => {
       s.x -= speed;
       drawSpike(s);
@@ -386,29 +375,31 @@ function loop() {
     });
     spikes = spikes.filter(s => s.x + s.size > 0);
 
-    // portails
+    /* --- Portails --- */
     portals.forEach(p => {
       p.x -= speed;
       drawPortal(p);
+
       if (!p.used && portalHit(player, p)) {
         p.used = true;
-        gravitySign *= -1;
-        player.vy = 0;
-        // reposition sur sol/plafond
-        if (gravitySign === -1) {
-          player.y = 80;
-        } else {
-          player.y = H - 120;
+
+        if (p.type === "gravity") {
+          gravitySign *= -1;
+          player.vy = 0;
+        } else if (p.type === "speed") {
+          speed += 1.2; // boost léger
         }
       }
     });
     portals = portals.filter(p => p.x + p.w > 0);
 
-    // score & difficulté
+    /* --- Score & vitesse --- */
     score += 0.1;
-    speed += 0.002;
-  } else {
-    // animation de mort
+    speed += 0.0008; // progression très lente
+  }
+
+  /* --- Mort --- */
+  if (gameOver) {
     deathTimer--;
     particles.forEach(pt => {
       pt.x += pt.vx;
@@ -426,11 +417,10 @@ function loop() {
     ctx.fillText("Mort ! Clique ou Espace pour recommencer", W/2, H/2);
   }
 
-  // dessin joueur / particules
+  /* --- Dessins finaux --- */
   if (!gameOver) drawPlayer();
   drawParticles();
 
-  // HUD
   document.getElementById("ui").textContent = "Score : " + Math.floor(score);
 
   requestAnimationFrame(loop);
