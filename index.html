@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash NEW</title>
+<title>Geometry Dash – Version Finale Stable</title>
 <style>
   body{
     margin:0;
@@ -31,17 +31,17 @@
 <div id="ui">Score : 0</div>
 
 <script>
-/* ============================
+/* ============================================================
    CANVAS
-============================ */
+============================================================ */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const W = canvas.width;
 const H = canvas.height;
 
-/* ============================
+/* ============================================================
    PLAYER
-============================ */
+============================================================ */
 const player = {
   x: 120,
   y: H - 120,
@@ -51,12 +51,16 @@ const player = {
   angle: 0
 };
 
-/* ============================
+/* ============================================================
    GAME VARIABLES
-============================ */
+============================================================ */
 let gravity = 0.8;
-let gravitySign = 1;      // 1 = sol, -1 = plafond
-let speed = 4.5;          // vitesse de base lente
+let gravitySign = 1;
+
+let baseSpeed = 4.5;   // vitesse constante
+let speed = baseSpeed;
+let maxSpeed = 6;      // vitesse max même avec portails
+
 let score = 0;
 
 let blocks = [];
@@ -68,11 +72,11 @@ let gameOver = false;
 let deathTimer = 0;
 
 let frameCount = 0;
-let lastSpikeX = -9999;   // pour espacer les pics
+let lastSpikeX = -9999;
 
-/* ============================
+/* ============================================================
    INPUT
-============================ */
+============================================================ */
 function jump() {
   if (!gameOver && player.onGround) {
     player.vy = -16 * gravitySign;
@@ -90,9 +94,9 @@ window.addEventListener("keydown", e => {
 });
 canvas.addEventListener("click", jump);
 
-/* ============================
+/* ============================================================
    SPAWN BLOCS (fixes + mobiles)
-============================ */
+============================================================ */
 function spawnBlock() {
   const type = Math.random();
 
@@ -105,8 +109,8 @@ function spawnBlock() {
   }
 
   const moving = type > 0.7;
-  const amp = moving ? 15 + Math.random()*10 : 0;          // amplitude réduite
-  const ms  = moving ? 0.001 + Math.random()*0.003 : 0;    // vitesse très lente
+  const amp = moving ? 10 + Math.random()*10 : 0;      // amplitude très faible
+  const ms  = moving ? 0.0005 + Math.random()*0.001 : 0; // vitesse ultra lente
   const phase = Math.random()*Math.PI*2;
 
   blocks.push({
@@ -122,13 +126,12 @@ function spawnBlock() {
   });
 }
 
-/* ============================
+/* ============================================================
    SPAWN PICS (espacés)
-============================ */
+============================================================ */
 function spawnSpike() {
-  const minDistance = 160; // distance minimale entre deux pics
+  const minDistance = 200;
 
-  // si le dernier pic est trop proche, on annule le spawn
   if (W + 50 - lastSpikeX < minDistance) return;
 
   const size = 40;
@@ -140,9 +143,9 @@ function spawnSpike() {
   lastSpikeX = spike.x;
 }
 
-/* ============================
-   SPAWN PORTAILS (gravité + vitesse)
-============================ */
+/* ============================================================
+   SPAWN PORTAILS
+============================================================ */
 function spawnPortal() {
   const type = Math.random() < 0.5 ? "gravity" : "speed";
   const y = (gravitySign === 1) ? H - 180 : 60;
@@ -157,9 +160,9 @@ function spawnPortal() {
   });
 }
 
-/* ============================
+/* ============================================================
    COLLISION BLOCS (mort sur les côtés)
-============================ */
+============================================================ */
 function resolveBlockCollision(p, b) {
   if (
     p.x < b.x + b.w &&
@@ -179,10 +182,7 @@ function resolveBlockCollision(p, b) {
       p.vy = 0;
       p.onGround = true;
     }
-    else if (minOverlap === overlapLeft) {
-      triggerDeath();
-    }
-    else if (minOverlap === overlapRight) {
+    else if (minOverlap === overlapLeft || minOverlap === overlapRight) {
       triggerDeath();
     }
     else if (minOverlap === overlapBottom) {
@@ -192,9 +192,9 @@ function resolveBlockCollision(p, b) {
   }
 }
 
-/* ============================
-   COLLISION PICS (mort instantanée)
-============================ */
+/* ============================================================
+   COLLISION PICS
+============================================================ */
 function spikeHit(p, s) {
   return (
     p.x < s.x + s.size &&
@@ -204,9 +204,9 @@ function spikeHit(p, s) {
   );
 }
 
-/* ============================
+/* ============================================================
    COLLISION PORTAILS
-============================ */
+============================================================ */
 function portalHit(p, portal) {
   return (
     p.x < portal.x + portal.w &&
@@ -216,9 +216,9 @@ function portalHit(p, portal) {
   );
 }
 
-/* ============================
+/* ============================================================
    DEATH ANIMATION
-============================ */
+============================================================ */
 function triggerDeath() {
   if (gameOver) return;
   gameOver = true;
@@ -239,16 +239,16 @@ function spawnDeathParticles() {
   }
 }
 
-/* ============================
+/* ============================================================
    RESTART
-============================ */
+============================================================ */
 function restart() {
   blocks = [];
   spikes = [];
   portals = [];
   particles = [];
   score = 0;
-  speed = 4.5;          // on remet la vitesse de base
+  speed = baseSpeed;   // vitesse remise à la valeur de base
   gravitySign = 1;
   player.x = 120;
   player.y = H - 120;
@@ -262,9 +262,9 @@ function restart() {
   requestAnimationFrame(loop);
 }
 
-/* ============================
+/* ============================================================
    DRAW FUNCTIONS
-============================ */
+============================================================ */
 function drawPlayer() {
   ctx.save();
   ctx.translate(player.x + player.size/2, player.y + player.size/2);
@@ -316,9 +316,9 @@ function drawParticles() {
   });
 }
 
-/* ============================
+/* ============================================================
    BACKGROUND
-============================ */
+============================================================ */
 let bgOffset = 0;
 function drawBackground() {
   bgOffset -= speed * 0.2;
@@ -332,9 +332,9 @@ function drawBackground() {
   }
 }
 
-/* ============================
+/* ============================================================
    MAIN LOOP
-============================ */
+============================================================ */
 function loop() {
   frameCount++;
 
@@ -342,12 +342,13 @@ function loop() {
   drawBackground();
 
   if (!gameOver) {
-    // Physique
+
+    /* --- Physique --- */
     player.vy += gravity * gravitySign;
     player.y += player.vy;
     player.onGround = false;
 
-    // Sol / plafond
+    /* --- Sol / plafond --- */
     if (gravitySign === 1) {
       if (player.y > H - 120) {
         player.y = H - 120;
@@ -362,19 +363,19 @@ function loop() {
       }
     }
 
-    // Rotation du triangle
+    /* --- Rotation du triangle --- */
     if (!player.onGround) {
       player.angle += 0.25 * gravitySign;
     } else {
       player.angle *= 0.8;
     }
 
-    // Spawns
+    /* --- Spawns --- */
     if (Math.random() < 0.03) spawnBlock();
     if (Math.random() < 0.02) spawnSpike();
     if (Math.random() < 0.005) spawnPortal();
 
-    // Blocs
+    /* --- Blocs --- */
     blocks.forEach(b => {
       b.x -= speed;
       if (b.moving) {
@@ -385,7 +386,7 @@ function loop() {
     });
     blocks = blocks.filter(b => b.x + b.w > 0);
 
-    // Pics
+    /* --- Pics --- */
     spikes.forEach(s => {
       s.x -= speed;
       drawSpike(s);
@@ -393,7 +394,7 @@ function loop() {
     });
     spikes = spikes.filter(s => s.x + s.size > 0);
 
-    // Portails
+    /* --- Portails --- */
     portals.forEach(p => {
       p.x -= speed;
       drawPortal(p);
@@ -405,19 +406,18 @@ function loop() {
           gravitySign *= -1;
           player.vy = 0;
         } else if (p.type === "speed") {
-          speed += 1.2; // petit boost
+          speed += 0.8;
+          if (speed > maxSpeed) speed = maxSpeed;
         }
       }
     });
     portals = portals.filter(p => p.x + p.w > 0);
 
-    // Score & vitesse (uniquement vivant)
+    /* --- Score --- */
     score += 0.1;
-    speed += 0.0008;
-    if (speed > 7) speed = 7;
   }
 
-  // Mort
+  /* --- Mort --- */
   if (gameOver) {
     deathTimer--;
     particles.forEach(pt => {
@@ -436,7 +436,7 @@ function loop() {
     ctx.fillText("Mort ! Clique ou Espace pour recommencer", W/2, H/2);
   }
 
-  // Dessins finaux
+  /* --- Dessins finaux --- */
   if (!gameOver) drawPlayer();
   drawParticles();
 
