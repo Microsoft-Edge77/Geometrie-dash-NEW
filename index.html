@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Geometry Dash New</title>
+<title>Mini Geometry Dash – Mode Chaos</title>
 <style>
   body {
     margin: 0;
@@ -20,7 +20,7 @@
     margin: 0 0 10px 0;
     font-size: 20px;
     letter-spacing: 1px;
-    color: #00eaff;
+    color: #ff3c7d;
   }
   #game {
     border: 2px solid #101528;
@@ -37,7 +37,7 @@
 </head>
 <body>
 
-<h1>GEOMETRY DASH NEW</h1>
+<h1>MINI GEOMETRY DASH - EXTREME</h1>
 <canvas id="game" width="1000" height="500"></canvas>
 <div id="ui">Score : 0</div>
 
@@ -50,7 +50,7 @@ const H = canvas.height;
 const GROUND_Y = H - 100;
 const CEILING_Y = 60;
 const PLAYER_SIZE = 35;
-const BASE_SPEED = 8; // Vitesse augmentée (vitesse limace éliminée !)
+const BASE_SPEED = 8.5;
 
 const player = {
   x: 150,
@@ -73,7 +73,7 @@ let particles = [];
 
 let gameOver = false;
 let deathTimer = 0;
-let lastObstacleX = -9999;
+let spawnTimer = 0; // Compteur pour forcer du contenu en continu
 let animationId = null;
 
 function jump() {
@@ -93,30 +93,36 @@ window.addEventListener("keydown", e => {
 });
 canvas.addEventListener("click", jump);
 
-function spawnObstacle() {
-  // Distance minimale réduite pour rapprocher les obstacles
-  if (W + 50 - lastObstacleX < 180) return;
-
-  const rand = Math.random();
+// Générateur de vagues massives d'obstacles
+function spawnWave() {
   const baseY = (gravitySign === 1) ? GROUND_Y : CEILING_Y;
+  const choice = Math.random();
 
-  if (rand < 0.45) {
-    // Bloc
-    let w = 60 + Math.random() * 30;
-    let h = 40 + Math.random() * 35;
-    let y = (gravitySign === 1) ? baseY - h : baseY;
-    blocks.push({ x: W + 50, y, w, h });
-  } else if (rand < 0.9) {
-    // Pic
+  if (choice < 0.35) {
+    // Double pic en série
     let size = 35;
     let y = (gravitySign === 1) ? baseY - size : baseY;
     spikes.push({ x: W + 50, y, size });
+    spikes.push({ x: W + 50 + size, y, size });
+  } else if (choice < 0.65) {
+    // Un bloc avec un pic dessus ou à côté
+    let w = 70, h = 50;
+    let y = (gravitySign === 1) ? baseY - h : baseY;
+    blocks.push({ x: W + 50, y, w, h });
+    
+    let spikeSize = 30;
+    let spikeY = (gravitySign === 1) ? y - spikeSize : baseY + h;
+    spikes.push({ x: W + 75, y: spikeY, size: spikeSize });
+  } else if (choice < 0.85) {
+    // Mur de blocs
+    let w = 50, h = 70;
+    let y = (gravitySign === 1) ? baseY - h : baseY;
+    blocks.push({ x: W + 50, y, w, h });
   } else {
-    // Portail
+    // Portail de gravité pour pimenter
     let y = (gravitySign === 1) ? GROUND_Y - 120 : CEILING_Y;
     portals.push({ x: W + 50, y, w: 30, h: 90, used: false });
   }
-  lastObstacleX = W + 50;
 }
 
 function triggerDeath() {
@@ -151,7 +157,7 @@ function restart() {
   player.angle = 0;
   gameOver = false;
   deathTimer = 0;
-  lastObstacleX = -9999;
+  spawnTimer = 0;
   loop();
 }
 
@@ -170,8 +176,7 @@ function loop() {
   }
 
   if (!gameOver) {
-    // Augmentation progressive de la vitesse avec le score
-    speed = BASE_SPEED + Math.floor(score / 50) * 0.5;
+    speed = BASE_SPEED + Math.floor(score / 40) * 0.4;
 
     player.vy += gravity * gravitySign;
     player.y += player.vy;
@@ -193,8 +198,12 @@ function loop() {
       player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
     }
 
-    // Fréquence de spawn beaucoup plus agressive
-    if (Math.random() < 0.05) spawnObstacle();
+    // Spawn cadencé et massif (toutes les ~35 frames)
+    spawnTimer++;
+    if (spawnTimer > 35) {
+      spawnWave();
+      spawnTimer = 0;
+    }
 
     // Blocs
     blocks.forEach(b => {
@@ -232,7 +241,7 @@ function loop() {
       ctx.closePath();
       ctx.fill();
 
-      if (player.x < s.x + s.size - 8 && player.x + player.size > s.x + 8 && player.y < s.y + s.size && player.y + player.size > s.y + 8) {
+      if (player.x < s.x + s.size - 6 && player.x + player.size > s.x + 6 && player.y < s.y + s.size && player.y + player.size > s.y + 6) {
         triggerDeath();
       }
     });
@@ -256,7 +265,7 @@ function loop() {
     score += 0.2;
   }
 
-  // Écran de mort
+  // Mort
   if (gameOver) {
     deathTimer--;
     particles.forEach(pt => {
@@ -269,7 +278,7 @@ function loop() {
     });
     particles = particles.filter(pt => pt.life > 0);
 
-    ctx.fillStyle = "rgba(5,8,18,0.7)";
+    ctx.fillStyle = "rgba(5,8,18,0.75)";
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = "#fff";
     ctx.font = "28px Arial";
@@ -277,7 +286,7 @@ function loop() {
     ctx.fillText("Mort ! Clique ou appuie sur Espace", W/2, H/2);
   }
 
-  // Joueur triangle
+  // Joueur
   if (!gameOver) {
     ctx.save();
     ctx.translate(player.x + player.size/2, player.y + player.size/2);
