@@ -2,53 +2,58 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Mini Geometry Dash – Base Propre</title>
+<title>Mini Geometry Dash – Version Jouable</title>
 <style>
-  body{
-    margin:0;
-    background:#050812;
-    overflow:hidden;
-    font-family:Arial,sans-serif;
-    color:#fff;
+  body {
+    margin: 0;
+    background: #050812;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    color: #fff;
   }
-  #game{
-    display:block;
-    margin:0 auto;
-    background:#071026;
+  h1 {
+    margin: 0 0 10px 0;
+    font-size: 20px;
+    letter-spacing: 1px;
+    color: #00eaff;
   }
-  #ui{
-    position:fixed;
-    top:10px;
-    left:10px;
-    font-size:18px;
-    font-weight:bold;
+  #game {
+    border: 2px solid #101528;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    background: #071026;
+  }
+  #ui {
+    margin-top: 10px;
+    font-size: 20px;
+    font-weight: bold;
   }
 </style>
 </head>
 <body>
 
-<canvas id="game" width="900" height="450"></canvas>
+<h1>MINI GEOMETRY DASH</h1>
+<canvas id="game" width="1000" height="500"></canvas>
 <div id="ui">Score : 0</div>
 
 <script>
-/* ============================
-   CONFIG GLOBALE
-============================ */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const W = canvas.width;
 const H = canvas.height;
 
-const GROUND_Y = H - 120;
+const GROUND_Y = H - 100;
 const CEILING_Y = 60;
-const PLAYER_SIZE = 30;
-const BASE_SPEED = 4.5;   // vitesse constante
+const PLAYER_SIZE = 35;
+const BASE_SPEED = 5;
 
-/* ============================
-   ÉTAT DU JEU
-============================ */
 const player = {
-  x: 120,
+  x: 150,
   y: GROUND_Y,
   size: PLAYER_SIZE,
   vy: 0,
@@ -57,7 +62,7 @@ const player = {
 };
 
 let gravity = 0.8;
-let gravitySign = 1;      // 1 = sol, -1 = plafond
+let gravitySign = 1;
 let speed = BASE_SPEED;
 let score = 0;
 
@@ -68,13 +73,9 @@ let particles = [];
 
 let gameOver = false;
 let deathTimer = 0;
+let lastObstacleX = -9999;
+let animationId = null;
 
-let frameCount = 0;
-let lastSpikeX = -9999;
-
-/* ============================
-   INPUT
-============================ */
 function jump() {
   if (!gameOver && player.onGround) {
     player.vy = -16 * gravitySign;
@@ -85,150 +86,67 @@ function jump() {
 }
 
 window.addEventListener("keydown", e => {
-  if (e.code === "Space") {
+  if (e.code === "Space" || e.code === "ArrowUp") {
     e.preventDefault();
     jump();
   }
 });
 canvas.addEventListener("click", jump);
 
-/* ============================
-   SPAWN
-============================ */
-function spawnBlock() {
-  const stairChance = 0.5;
-  const movingChance = 0.3;
+function spawnObstacle() {
+  if (W + 100 - lastObstacleX < 250) return; // Évite que les obstacles se collent
 
-  let w = 70 + Math.random() * 60;
-  let h = 40 + Math.random() * 50;
-  let baseY = (gravitySign === 1) ? GROUND_Y : CEILING_Y;
-  let y = baseY;
+  const type = Math.random();
+  if (type < 0.5) {
+    // Bloc simple et propre
+    let w = 80 + Math.random() * 50;
+    let h = 40 + Math.random() * 40;
+    let baseY = (gravitySign === 1) ? GROUND_Y : CEILING_Y;
+    let y = (gravitySign === 1) ? baseY - h : baseY;
 
-  if (Math.random() < stairChance) {
-    const steps = Math.floor(Math.random() * 3);
-    y -= steps * 40 * gravitySign;
+    blocks.push({ x: W + 50, y, w, h });
+    lastObstacleX = W + 50;
+  } else {
+    // Pic
+    let size = 35;
+    let baseY = (gravitySign === 1) ? GROUND_Y : CEILING_Y;
+    let y = (gravitySign === 1) ? baseY - size : baseY;
+
+    spikes.push({ x: W + 50, y, size });
+    lastObstacleX = W + 50;
   }
-
-  const moving = Math.random() < movingChance;
-  const amp = moving ? 10 + Math.random()*10 : 0;
-  const ms  = moving ? 0.0005 + Math.random()*0.001 : 0;
-  const phase = Math.random()*Math.PI*2;
-
-  blocks.push({
-    x: W + 50,
-    baseY: y,
-    y,
-    w,
-    h,
-    moving,
-    amp,
-    ms,
-    phase
-  });
-}
-
-function spawnSpike() {
-  const minDistance = 200;
-  if (W + 50 - lastSpikeX < minDistance) return;
-
-  const size = 40;
-  const baseY = (gravitySign === 1) ? GROUND_Y : CEILING_Y;
-  const y = (gravitySign === 1) ? baseY : baseY - size;
-
-  const spike = { x: W + 50, y, size };
-  spikes.push(spike);
-  lastSpikeX = spike.x;
 }
 
 function spawnPortal() {
-  const y = (gravitySign === 1) ? GROUND_Y - 60 : CEILING_Y;
-
-  portals.push({
-    x: W + 50,
-    y,
-    w: 30,
-    h: 80,
-    used: false
-  });
-}
-
-/* ============================
-   COLLISIONS
-============================ */
-function resolveBlockCollision(p, b) {
-  if (
-    p.x < b.x + b.w &&
-    p.x + p.size > b.x &&
-    p.y < b.y + b.h &&
-    p.y + p.size > b.y
-  ) {
-    const overlapLeft = (p.x + p.size) - b.x;
-    const overlapRight = (b.x + b.w) - p.x;
-    const overlapTop = (p.y + p.size) - b.y;
-    const overlapBottom = (b.y + b.h) - p.y;
-
-    const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
-
-    if (minOverlap === overlapTop && p.vy * gravitySign >= 0) {
-      p.y = b.y - p.size;
-      p.vy = 0;
-      p.onGround = true;
-    }
-    else if (minOverlap === overlapLeft || minOverlap === overlapRight) {
-      triggerDeath();
-    }
-    else if (minOverlap === overlapBottom) {
-      p.y = b.y + b.h;
-      p.vy = 2 * gravitySign;
-    }
+  if (Math.random() < 0.004 && portals.length === 0) {
+    portals.push({
+      x: W + 50,
+      y: (gravitySign === 1) ? GROUND_Y - 120 : CEILING_Y,
+      w: 30,
+      h: 90,
+      used: false
+    });
   }
 }
 
-function spikeHit(p, s) {
-  return (
-    p.x < s.x + s.size &&
-    p.x + p.size > s.x &&
-    p.y < s.y + s.size &&
-    p.y + p.size > s.y
-  );
-}
-
-function portalHit(p, portal) {
-  return (
-    p.x < portal.x + portal.w &&
-    p.x + p.size > portal.x &&
-    p.y < portal.y + portal.h &&
-    p.y + p.size > portal.y
-  );
-}
-
-/* ============================
-   MORT & PARTICULES
-============================ */
 function triggerDeath() {
   if (gameOver) return;
   gameOver = true;
   deathTimer = 60;
-  spawnDeathParticles();
-}
-
-function spawnDeathParticles() {
   particles = [];
   for (let i = 0; i < 40; i++) {
     particles.push({
       x: player.x + player.size/2,
       y: player.y + player.size/2,
-      vx: (Math.random()*2-1)*6,
-      vy: (Math.random()*2-1)*6,
+      vx: (Math.random()*2-1)*7,
+      vy: (Math.random()*2-1)*7,
       life: 40 + Math.random()*20
     });
   }
 }
 
-/* ============================
-   RESTART
-============================ */
 function restart() {
+  if (animationId) cancelAnimationFrame(animationId);
   blocks = [];
   spikes = [];
   portals = [];
@@ -236,152 +154,102 @@ function restart() {
   score = 0;
   speed = BASE_SPEED;
   gravitySign = 1;
-  player.x = 120;
+  player.x = 150;
   player.y = GROUND_Y;
   player.vy = 0;
   player.onGround = false;
   player.angle = 0;
   gameOver = false;
   deathTimer = 0;
-  frameCount = 0;
-  lastSpikeX = -9999;
-  requestAnimationFrame(loop);
-}
-
-/* ============================
-   DRAW
-============================ */
-function drawPlayer() {
-  ctx.save();
-  ctx.translate(player.x + player.size/2, player.y + player.size/2);
-  ctx.rotate(player.angle);
-  ctx.translate(-player.size/2, -player.size/2);
-
-  ctx.fillStyle = "#00eaff";
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(0, player.size);
-  ctx.lineTo(player.size, player.size/2);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.restore();
-}
-
-function drawBlock(b) {
-  ctx.fillStyle = "#ff3c7d";
-  ctx.fillRect(b.x, b.y, b.w, b.h);
-}
-
-function drawSpike(s) {
-  ctx.fillStyle = "#ffdd55";
-  ctx.beginPath();
-  if (gravitySign === 1) {
-    ctx.moveTo(s.x, s.y + s.size);
-    ctx.lineTo(s.x + s.size/2, s.y);
-    ctx.lineTo(s.x + s.size, s.y + s.size);
-  } else {
-    ctx.moveTo(s.x, s.y);
-    ctx.lineTo(s.x + s.size/2, s.y + s.size);
-    ctx.lineTo(s.x + s.size, s.y);
-  }
-  ctx.closePath();
-  ctx.fill();
-}
-
-function drawPortal(p) {
-  ctx.strokeStyle = "#7b5cff";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(p.x, p.y, p.w, p.h);
-}
-
-function drawParticles() {
-  particles.forEach(pt => {
-    ctx.fillStyle = "#00eaff";
-    ctx.fillRect(pt.x, pt.y, 4, 4);
-  });
+  lastObstacleX = -9999;
+  loop();
 }
 
 let bgOffset = 0;
-function drawBackground() {
+function loop() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background décoratif
   bgOffset -= speed * 0.2;
   ctx.fillStyle = "#050812";
   ctx.fillRect(0, 0, W, H);
-
-  ctx.fillStyle = "#101528";
-  for (let i = 0; i < 20; i++) {
-    let x = (i * 200 + bgOffset) % (W + 200) - 200;
-    ctx.fillRect(x, H - 200, 150, 200);
+  ctx.fillStyle = "#0d1326";
+  for (let i = 0; i < 15; i++) {
+    let x = (i * 250 + bgOffset) % (W + 250) - 250;
+    ctx.fillRect(x, H - 180, 180, 180);
   }
-}
-
-/* ============================
-   MAIN LOOP
-============================ */
-function loop() {
-  frameCount++;
-
-  ctx.clearRect(0, 0, W, H);
-  drawBackground();
 
   if (!gameOver) {
-    // Physique
     player.vy += gravity * gravitySign;
     player.y += player.vy;
     player.onGround = false;
 
-    // Sol / plafond
-    if (gravitySign === 1) {
-      if (player.y > GROUND_Y) {
-        player.y = GROUND_Y;
-        player.vy = 0;
-        player.onGround = true;
-      }
-    } else {
-      if (player.y < CEILING_Y) {
-        player.y = CEILING_Y;
-        player.vy = 0;
-        player.onGround = true;
-      }
+    if (gravitySign === 1 && player.y > GROUND_Y - player.size) {
+      player.y = GROUND_Y - player.size;
+      player.vy = 0;
+      player.onGround = true;
+    } else if (gravitySign === -1 && player.y < CEILING_Y) {
+      player.y = CEILING_Y;
+      player.vy = 0;
+      player.onGround = true;
     }
 
-    // Rotation
-    if (!player.onGround) {
-      player.angle += 0.25 * gravitySign;
-    } else {
-      player.angle *= 0.8;
-    }
+    player.angle = !player.onGround ? player.angle + 0.2 * gravitySign : player.angle * 0.8;
 
-    // Spawns
-    if (Math.random() < 0.03) spawnBlock();
-    if (Math.random() < 0.02) spawnSpike();
-    if (Math.random() < 0.005) spawnPortal();
+    if (Math.random() < 0.02) spawnObstacle();
+    spawnPortal();
 
-    // Blocs
+    // Gestion des blocs
     blocks.forEach(b => {
       b.x -= speed;
-      if (b.moving) {
-        b.y = b.baseY + Math.sin(performance.now()*b.ms + b.phase)*b.amp;
+      ctx.fillStyle = "#ff3c7d";
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+
+      // Collisions
+      if (player.x < b.x + b.w && player.x + player.size > b.x && player.y < b.y + b.h && player.y + player.size > b.y) {
+        const topOverlap = (player.y + player.size) - b.y;
+        if (topOverlap <= 15 && player.vy * gravitySign >= 0) {
+          player.y = b.y - player.size;
+          player.vy = 0;
+          player.onGround = true;
+        } else {
+          triggerDeath();
+        }
       }
-      drawBlock(b);
-      resolveBlockCollision(player, b);
     });
     blocks = blocks.filter(b => b.x + b.w > 0);
 
-    // Pics
+    // Gestion des pics
     spikes.forEach(s => {
       s.x -= speed;
-      drawSpike(s);
-      if (spikeHit(player, s)) triggerDeath();
+      ctx.fillStyle = "#ffdd55";
+      ctx.beginPath();
+      if (gravitySign === 1) {
+        ctx.moveTo(s.x, s.y + s.size);
+        ctx.lineTo(s.x + s.size/2, s.y);
+        ctx.lineTo(s.x + s.size, s.y + s.size);
+      } else {
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x + s.size/2, s.y + s.size);
+        ctx.lineTo(s.x + s.size, s.y);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      if (player.x < s.x + s.size - 10 && player.x + player.size > s.x + 10 && player.y < s.y + s.size && player.y + player.size > s.y + 10) {
+        triggerDeath();
+      }
     });
     spikes = spikes.filter(s => s.x + s.size > 0);
 
-    // Portails (gravité)
+    // Gestion des portails
     portals.forEach(p => {
       p.x -= speed;
-      drawPortal(p);
+      ctx.strokeStyle = "#7b5cff";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(p.x, p.y, p.w, p.h);
 
-      if (!p.used && portalHit(player, p)) {
+      if (!p.used && player.x < p.x + p.w && player.x + player.size > p.x && player.y < p.y + p.h && player.y + player.size > p.y) {
         p.used = true;
         gravitySign *= -1;
         player.vy = 0;
@@ -389,11 +257,10 @@ function loop() {
     });
     portals = portals.filter(p => p.x + p.w > 0);
 
-    // Score
     score += 0.1;
   }
 
-  // Mort
+  // Écran de mort
   if (gameOver) {
     deathTimer--;
     particles.forEach(pt => {
@@ -401,26 +268,35 @@ function loop() {
       pt.y += pt.vy;
       pt.vy += 0.2;
       pt.life--;
+      ctx.fillStyle = "#00eaff";
+      ctx.fillRect(pt.x, pt.y, 5, 5);
     });
     particles = particles.filter(pt => pt.life > 0);
 
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
-    ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = "rgba(5,8,18,0.7)";
+    ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = "#fff";
     ctx.font = "28px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("Mort ! Clique ou Espace pour recommencer", W/2, H/2);
+    ctx.fillText("Mort ! Clique ou appuie sur Espace", W/2, H/2);
   }
 
-  if (!gameOver) drawPlayer();
-  drawParticles();
+  // Dessin du joueur
+  if (!gameOver) {
+    ctx.save();
+    ctx.translate(player.x + player.size/2, player.y + player.size/2);
+    ctx.rotate(player.angle);
+    ctx.translate(-player.size/2, -player.size/2);
+    ctx.fillStyle = "#00eaff";
+    ctx.fillRect(0, 0, player.size, player.size);
+    ctx.restore();
+  }
 
   document.getElementById("ui").textContent = "Score : " + Math.floor(score);
-
-  requestAnimationFrame(loop);
+  animationId = requestAnimationFrame(loop);
 }
 
-requestAnimationFrame(loop);
+loop();
 </script>
 
 </body>
