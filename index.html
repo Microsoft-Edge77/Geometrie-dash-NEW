@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Mini Geometry Dash – Vraie Version</title>
+<title>Geometry Dash New</title>
 <style>
   body {
     margin: 0;
@@ -37,7 +37,7 @@
 </head>
 <body>
 
-<h1>MINI GEOMETRY DASH</h1>
+<h1>GEOMETRY DASH NEW</h1>
 <canvas id="game" width="1000" height="500"></canvas>
 <div id="ui">Score : 0</div>
 
@@ -50,7 +50,7 @@ const H = canvas.height;
 const GROUND_Y = H - 100;
 const CEILING_Y = 60;
 const PLAYER_SIZE = 35;
-const BASE_SPEED = 5;
+const BASE_SPEED = 8; // Vitesse augmentée (vitesse limace éliminée !)
 
 const player = {
   x: 150,
@@ -61,7 +61,7 @@ const player = {
   angle: 0
 };
 
-let gravity = 0.8;
+let gravity = 0.9;
 let gravitySign = 1;
 let speed = BASE_SPEED;
 let score = 0;
@@ -78,7 +78,7 @@ let animationId = null;
 
 function jump() {
   if (!gameOver && player.onGround) {
-    player.vy = -16 * gravitySign;
+    player.vy = -16.5 * gravitySign;
     player.onGround = false;
   } else if (gameOver && deathTimer <= 0) {
     restart();
@@ -94,24 +94,25 @@ window.addEventListener("keydown", e => {
 canvas.addEventListener("click", jump);
 
 function spawnObstacle() {
-  if (W + 100 - lastObstacleX < 220) return;
+  // Distance minimale réduite pour rapprocher les obstacles
+  if (W + 50 - lastObstacleX < 180) return;
 
   const rand = Math.random();
   const baseY = (gravitySign === 1) ? GROUND_Y : CEILING_Y;
 
-  if (rand < 0.4) {
+  if (rand < 0.45) {
     // Bloc
-    let w = 70 + Math.random() * 40;
-    let h = 40 + Math.random() * 40;
+    let w = 60 + Math.random() * 30;
+    let h = 40 + Math.random() * 35;
     let y = (gravitySign === 1) ? baseY - h : baseY;
     blocks.push({ x: W + 50, y, w, h });
-  } else if (rand < 0.8) {
+  } else if (rand < 0.9) {
     // Pic
     let size = 35;
     let y = (gravitySign === 1) ? baseY - size : baseY;
     spikes.push({ x: W + 50, y, size });
   } else {
-    // Portail (plus rare mais équilibré)
+    // Portail
     let y = (gravitySign === 1) ? GROUND_Y - 120 : CEILING_Y;
     portals.push({ x: W + 50, y, w: 30, h: 90, used: false });
   }
@@ -169,6 +170,9 @@ function loop() {
   }
 
   if (!gameOver) {
+    // Augmentation progressive de la vitesse avec le score
+    speed = BASE_SPEED + Math.floor(score / 50) * 0.5;
+
     player.vy += gravity * gravitySign;
     player.y += player.vy;
     player.onGround = false;
@@ -183,14 +187,14 @@ function loop() {
       player.onGround = true;
     }
 
-    // Rotation style Geometry Dash
     if (!player.onGround) {
-      player.angle += 0.25 * gravitySign;
+      player.angle += 0.3 * gravitySign;
     } else {
-      player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2); // Remet droit au sol
+      player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
     }
 
-    if (Math.random() < 0.025) spawnObstacle();
+    // Fréquence de spawn beaucoup plus agressive
+    if (Math.random() < 0.05) spawnObstacle();
 
     // Blocs
     blocks.forEach(b => {
@@ -249,7 +253,7 @@ function loop() {
     });
     portals = portals.filter(p => p.x + p.w > 0);
 
-    score += 0.1;
+    score += 0.2;
   }
 
   // Écran de mort
@@ -273,7 +277,7 @@ function loop() {
     ctx.fillText("Mort ! Clique ou appuie sur Espace", W/2, H/2);
   }
 
-  // Dessin du Joueur (VRAI TRIANGLE STYLÉ)
+  // Joueur triangle
   if (!gameOver) {
     ctx.save();
     ctx.translate(player.x + player.size/2, player.y + player.size/2);
