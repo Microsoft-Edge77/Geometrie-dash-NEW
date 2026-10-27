@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Mini Geometry Dash – Version Jouable</title>
+<title>Mini Geometry Dash – Vraie Version</title>
 <style>
   body {
     margin: 0;
@@ -94,39 +94,28 @@ window.addEventListener("keydown", e => {
 canvas.addEventListener("click", jump);
 
 function spawnObstacle() {
-  if (W + 100 - lastObstacleX < 250) return; // Évite que les obstacles se collent
+  if (W + 100 - lastObstacleX < 220) return;
 
-  const type = Math.random();
-  if (type < 0.5) {
-    // Bloc simple et propre
-    let w = 80 + Math.random() * 50;
+  const rand = Math.random();
+  const baseY = (gravitySign === 1) ? GROUND_Y : CEILING_Y;
+
+  if (rand < 0.4) {
+    // Bloc
+    let w = 70 + Math.random() * 40;
     let h = 40 + Math.random() * 40;
-    let baseY = (gravitySign === 1) ? GROUND_Y : CEILING_Y;
     let y = (gravitySign === 1) ? baseY - h : baseY;
-
     blocks.push({ x: W + 50, y, w, h });
-    lastObstacleX = W + 50;
-  } else {
+  } else if (rand < 0.8) {
     // Pic
     let size = 35;
-    let baseY = (gravitySign === 1) ? GROUND_Y : CEILING_Y;
     let y = (gravitySign === 1) ? baseY - size : baseY;
-
     spikes.push({ x: W + 50, y, size });
-    lastObstacleX = W + 50;
+  } else {
+    // Portail (plus rare mais équilibré)
+    let y = (gravitySign === 1) ? GROUND_Y - 120 : CEILING_Y;
+    portals.push({ x: W + 50, y, w: 30, h: 90, used: false });
   }
-}
-
-function spawnPortal() {
-  if (Math.random() < 0.004 && portals.length === 0) {
-    portals.push({
-      x: W + 50,
-      y: (gravitySign === 1) ? GROUND_Y - 120 : CEILING_Y,
-      w: 30,
-      h: 90,
-      used: false
-    });
-  }
+  lastObstacleX = W + 50;
 }
 
 function triggerDeath() {
@@ -169,7 +158,7 @@ let bgOffset = 0;
 function loop() {
   ctx.clearRect(0, 0, W, H);
 
-  // Background décoratif
+  // Background
   bgOffset -= speed * 0.2;
   ctx.fillStyle = "#050812";
   ctx.fillRect(0, 0, W, H);
@@ -194,18 +183,21 @@ function loop() {
       player.onGround = true;
     }
 
-    player.angle = !player.onGround ? player.angle + 0.2 * gravitySign : player.angle * 0.8;
+    // Rotation style Geometry Dash
+    if (!player.onGround) {
+      player.angle += 0.25 * gravitySign;
+    } else {
+      player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2); // Remet droit au sol
+    }
 
-    if (Math.random() < 0.02) spawnObstacle();
-    spawnPortal();
+    if (Math.random() < 0.025) spawnObstacle();
 
-    // Gestion des blocs
+    // Blocs
     blocks.forEach(b => {
       b.x -= speed;
       ctx.fillStyle = "#ff3c7d";
       ctx.fillRect(b.x, b.y, b.w, b.h);
 
-      // Collisions
       if (player.x < b.x + b.w && player.x + player.size > b.x && player.y < b.y + b.h && player.y + player.size > b.y) {
         const topOverlap = (player.y + player.size) - b.y;
         if (topOverlap <= 15 && player.vy * gravitySign >= 0) {
@@ -219,7 +211,7 @@ function loop() {
     });
     blocks = blocks.filter(b => b.x + b.w > 0);
 
-    // Gestion des pics
+    // Pics
     spikes.forEach(s => {
       s.x -= speed;
       ctx.fillStyle = "#ffdd55";
@@ -236,13 +228,13 @@ function loop() {
       ctx.closePath();
       ctx.fill();
 
-      if (player.x < s.x + s.size - 10 && player.x + player.size > s.x + 10 && player.y < s.y + s.size && player.y + player.size > s.y + 10) {
+      if (player.x < s.x + s.size - 8 && player.x + player.size > s.x + 8 && player.y < s.y + s.size && player.y + player.size > s.y + 8) {
         triggerDeath();
       }
     });
     spikes = spikes.filter(s => s.x + s.size > 0);
 
-    // Gestion des portails
+    // Portails
     portals.forEach(p => {
       p.x -= speed;
       ctx.strokeStyle = "#7b5cff";
@@ -281,14 +273,27 @@ function loop() {
     ctx.fillText("Mort ! Clique ou appuie sur Espace", W/2, H/2);
   }
 
-  // Dessin du joueur
+  // Dessin du Joueur (VRAI TRIANGLE STYLÉ)
   if (!gameOver) {
     ctx.save();
     ctx.translate(player.x + player.size/2, player.y + player.size/2);
     ctx.rotate(player.angle);
     ctx.translate(-player.size/2, -player.size/2);
+
     ctx.fillStyle = "#00eaff";
-    ctx.fillRect(0, 0, player.size, player.size);
+    ctx.beginPath();
+    if (gravitySign === 1) {
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, player.size);
+      ctx.lineTo(player.size, player.size/2);
+    } else {
+      ctx.moveTo(0, player.size);
+      ctx.lineTo(0, 0);
+      ctx.lineTo(player.size, player.size/2);
+    }
+    ctx.closePath();
+    ctx.fill();
+
     ctx.restore();
   }
 
